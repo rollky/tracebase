@@ -1,7 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PROVIDERS,providerParameters} from '../core/providers.mjs';
-import {chat} from '../core/model.mjs';
+import {chat,normalizeApiKey} from '../core/model.mjs';
+test('API keys reject unsafe header characters without leaking secrets or making requests',async()=>{
+  for(const key of ['允许访问','sk-secret\nvalue','sk-\u200bsecret','sk-secret value','sk-😀']){
+    await assert.rejects(chat({model:'test',baseUrl:'https://example.com/v1'},key,[],{fetcher:()=>{assert.fail('invalid key must not reach network');}}),error=>error.message.includes('API Key')&&!error.message.includes(key));
+  }
+  assert.equal(normalizeApiKey('  sk-valid-key\r\n'),'sk-valid-key');
+  assert.equal(normalizeApiKey(''),'');
+  assert.equal(normalizeApiKey(undefined),'');
+});
 test('Kimi defaults match the current official compatible endpoint',()=>{
   assert.equal(PROVIDERS.kimi.baseUrl,'https://api.moonshot.cn/v1');
   assert.equal(PROVIDERS.kimi.model,'kimi-k3');

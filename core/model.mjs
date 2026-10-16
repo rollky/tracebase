@@ -1,4 +1,11 @@
 import {providerParameters} from './providers.mjs';
+export function normalizeApiKey(value) {
+  if(value==null)return '';
+  if(typeof value!=='string')throw new Error('API Key 格式无效，请重新粘贴模型开放平台生成的密钥');
+  const key=value.trim();
+  if(key && !/^[\x21-\x7E]+$/.test(key))throw new Error('API Key 含中文、空格或不可见字符。请重新粘贴模型开放平台生成的完整密钥，不要填写密钥名称或说明文字。');
+  return key;
+}
 export function normalizeEndpoint(value) {
   let url;try{url=new URL(value);}catch{throw new Error('请输入有效的模型 API 地址');}
   if(url.username||url.password||url.search||url.hash) throw new Error('API 地址不能包含账号、查询参数或片段');
@@ -8,6 +15,7 @@ export function normalizeEndpoint(value) {
   return url.href;
 }
 export async function chat(config,key,messages,{signal,fetcher=fetch,maxTokens=5000}={}) {
+  key=normalizeApiKey(key);
   if(!config.model?.trim())throw new Error('请填写模型名称');
   const timeout=AbortSignal.timeout(config.provider==='kimi'?240000:120000);
   const response=await fetcher(normalizeEndpoint(config.baseUrl),{method:'POST',redirect:'error',signal:signal?AbortSignal.any([signal,timeout]):timeout,

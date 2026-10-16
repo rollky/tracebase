@@ -1,10 +1,12 @@
 {
   "name": "tracebase",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "从代码与文档建立可追溯的业务知识库",
   "author": "Tracebase",
   "private": true,
-  "engines": {"node": ">=22.13.0"},
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
@@ -30,16 +32,39 @@
     "electron-builder": "26.15.3",
     "playwright": "1.58.2"
   },
-  "overrides": {"global-agent": "4.1.3"},
+  "overrides": {
+    "global-agent": "4.1.3"
+  },
   "build": {
     "appId": "com.tracebase.desktop",
     "productName": "Tracebase",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "directories": {"output": "release"},
-    "files": ["dist/**", "electron/**", "core/**", "fixtures/**", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "core/**",
+      "fixtures/**",
+      "package.json"
+    ],
     "asar": true,
-    "mac": {"category": "public.app-category.developer-tools", "target": ["dmg", "zip"]},
-    "win": {"target": ["nsis"]},
-    "nsis": {"oneClick": false, "allowToChangeInstallationDirectory": true}
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

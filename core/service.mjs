@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {scanSources,compareIndex,readEvidence,makeChunks} from './scanner.mjs';
-import {chat,parseAnalysis,SYSTEM_PROMPT,normalizeEndpoint} from './model.mjs';
+import {chat,parseAnalysis,SYSTEM_PROMPT,normalizeEndpoint,normalizeApiKey} from './model.mjs';
 import {articleMarkdown} from './storage.mjs';
 import {feishuToken,publishFeishu} from './feishu.mjs';
 const now=()=>new Date().toISOString();
@@ -16,8 +16,8 @@ export class Service {
   async scan(id){const p=this.project(id);if(!p.sources.length)throw new Error('请先添加代码目录或文档');if(this.running.has(id)||this.scanning.has(id))throw new Error('当前项目已有任务运行');this.scanning.add(id);
     try{const index=await scanSources(p.sources);p.changes=compareIndex(p.index,index);const changed=new Set([...p.changes.modified,...p.changes.deleted]);for(const a of p.articles)if(a.sources.some(s=>changed.has(s.fileId)||index.files.find(f=>f.id===s.fileId)?.hash!==s.hash))a.stale=true;p.index=index;await this.save();return index.files.length;}finally{this.scanning.delete(id);}}
   async saveModel(input){if(this.running.size)throw new Error('请等待分析完成后修改模型');const baseUrl=normalizeEndpoint(input.baseUrl).replace(/\/chat\/completions$/,'');if(!input.model?.trim())throw new Error('请输入模型名称');
-    const old=this.store.state.models;const changed=old.baseUrl!==baseUrl;
-    if(input.key?.trim())await this.secrets.set('model',input.key.trim());else if(changed||input.clearKey)await this.secrets.delete('model');
+    const key=normalizeApiKey(input.key);const old=this.store.state.models;const changed=old.baseUrl!==baseUrl;
+    if(key)await this.secrets.set('model',key);else if(changed||input.clearKey)await this.secrets.delete('model');
     this.store.state.models={provider:input.provider||'custom',baseUrl,model:input.model.trim()};await this.save();}
   async testModel(){const c=this.store.state.models;await chat(c,await this.secrets.get('model'),[{role:'user',content:'Reply with OK.'}],{fetcher:this.fetcher,maxTokens:32});return '连接成功：模型已返回响应';}
   async saveFeishu(input){if(input.secret?.trim())await this.secrets.set('feishu',input.secret.trim());else if(this.store.state.feishu.appId!==input.appId||input.clearSecret)await this.secrets.delete('feishu');this.store.state.feishu={appId:String(input.appId||'').trim(),folderToken:String(input.folderToken||'').trim()};await this.save();}

@@ -13,6 +13,14 @@ async function fixture(t){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'trac
 const secretStore=()=>{const values=new Map();return {has:async k=>values.has(k),get:async k=>values.get(k)||'',set:async(k,v)=>values.set(k,v),delete:async k=>values.delete(k)};};
 const response=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 
+test('invalid API key does not replace saved credentials or model settings',async t=>{
+  const dir=await fixture(t),store=new Store(dir);await store.load();const secrets=secretStore(),service=new Service(store,secrets);
+  const config={provider:'kimi',baseUrl:'https://api.moonshot.cn/v1',model:'kimi-k3',key:'sk-valid'};
+  await service.saveModel(config);const before={...store.state.models};
+  await assert.rejects(service.saveModel({...config,model:'changed',key:'允许访问'}),/API Key/);
+  assert.equal(await secrets.get('model'),'sk-valid');assert.deepEqual(store.state.models,before);
+});
+
 test('scan filters dependencies, secrets, binary files and detects stale evidence',async t=>{
   const dir=await fixture(t);await fs.mkdir(path.join(dir,'src'));await fs.mkdir(path.join(dir,'node_modules'));
   await fs.writeFile(path.join(dir,'src/order.ts'),'export const canCancel = status => status === "pending";\n');
