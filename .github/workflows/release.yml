@@ -58,7 +58,7 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -75,17 +75,19 @@ jobs:
           REQUESTED_TAG: ${{ inputs.release_tag }}
           REF_TAG: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
+          REF_TYPE: ${{ github.ref_type }}
         shell: bash
         run: |
           set -euo pipefail
           version=$(node -p "require('./package.json').version")
-          tag="${REQUESTED_TAG:-$REF_TAG}"
+          tag="${REQUESTED_TAG:-v$version}"
+          if [ "$REF_TYPE" = tag ]; then tag="$REF_TAG"; fi
           test "$tag" = "v$version" || { echo 'Tag must match package.json version'; exit 1; }
           cd artifacts
           sha256sum * > SHA256SUMS.txt
           cd ..
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" artifacts/* --clobber
+            echo "Release $tag already exists; keeping its original assets. Bump package.json to publish a new version."
           else
             gh release create "$tag" artifacts/* --target "$COMMIT_SHA" --title "Tracebase $tag" --generate-notes
           fi

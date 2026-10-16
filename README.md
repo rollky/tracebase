@@ -96,7 +96,7 @@ npm run package:win
 - macOS Intel：DMG、ZIP
 - Windows x64：EXE 安装程序
 
-普通构建的安装包在 Actions 的 Artifacts 中保留 14 天。推送与 `package.json` 版本对应的标签（例如 `v0.1.0`）会自动创建 GitHub Release，并附上安装包和 SHA256 校验文件。也可以打开 Actions → Build desktop releases → Run workflow，填写 `release_tag` 为 `v0.1.0`；留空则仅构建。发布前请更新 package.json 及 package-lock.json 的版本号。
+构建的安装包在 Actions 的 Artifacts 中保留 14 天。主分支构建成功后，如果 `package.json` 的版本尚未发行，就自动创建对应 GitHub Release，附上安装包和 SHA256 校验文件；已有版本的资产不会被覆盖。推送对应标签（例如 `v0.1.0`）也能触发发行。也可以打开 Actions → Build desktop releases → Run workflow，填写 `release_tag` 为 `v0.1.0`；留空则仅构建。发布新版前请更新 package.json 及 package-lock.json 的版本号。
 
 工作流使用 GitHub 内置令牌，无需提供个人 Token 或模型 Key。当前为未签名开发版本，没有配置 Apple 公证或 Windows 代码签名；系统可能显示安全提示。私有仓库的运行资源受 GitHub 账户 Actions 额度限制。
 
