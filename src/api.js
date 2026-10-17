@@ -1,3 +1,4 @@
+import {inspectKnowledge} from '../core/quality.mjs';
 import {demoState} from './demo';
 import {retrieve,normalizeScope} from '../core/retrieval.mjs';
 const native=window.tracebase;
@@ -8,6 +9,7 @@ const save=()=>{localStorage.setItem('tracebase-preview-v1',JSON.stringify(state
 const clone=x=>structuredClone(x);
 const notDesktop=()=>{throw new Error('此功能需要桌面版。浏览器预览不会读取本地目录、存储密钥或调用模型。');};
 async function preview(action,...args){
+  if(action==='inspectQuality')return inspectKnowledge(state.projects.find(p=>p.id===args[0]).articles);
   if(action==='state')return clone(state);
   if(action==='previewQuestion'){const project=state.projects.find(p=>p.id===args[0]);return {candidates:retrieve(project.articles,args[1],args[2]),scope:normalizeScope(args[2]),fingerprint:'preview'};}
   if(action==='createProject'){const p={id:crypto.randomUUID(),name:args[0].name,description:args[0].description,createdAt:new Date().toISOString(),sources:[],articles:[],jobs:[],publications:[],index:null};if(!p.name.trim())throw new Error('请输入项目名称');state.projects.push(p);state.activeProjectId=p.id;save();return p.id;}

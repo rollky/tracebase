@@ -56,7 +56,7 @@ async function actions(action,args){
   if(action==='openLink'){
     const value=args[0];if(typeof value!=='string'||!(/^https:\/\/www\.feishu\.cn\/docx\/[A-Za-z0-9_-]+$/.test(value)||/^https:\/\/github\.com\/rollky\/tracebase\/releases\/tag\/v\d+\.\d+\.\d+$/.test(value)))throw new Error('仅允许打开已发布的飞书文档或官方版本页');await shell.openExternal(value);return;
   }
-  const allowed=['state','createProject','selectProject','removeSource','scan','saveRuntime','saveSchedule','previewFeishu','importFeishu','refreshFeishu','previewPublication','appendPublication','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
+  const allowed=['state','createProject','selectProject','removeSource','scan','saveRuntime','saveSchedule','previewFeishu','importFeishu','refreshFeishu','previewPublication','appendPublication','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','inspectQuality','dismissQuality','consolidateKnowledge','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
   if(!allowed.includes(action))throw new Error('不支持的操作');
   return service[action](...args);
 }

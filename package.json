@@ -1,6 +1,6 @@
 {
   "name": "tracebase",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "从代码与文档建立可追溯的业务知识库",
   "author": "Tracebase",
   "private": true,
@@ -13,7 +13,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "start": "npm run build && electron .",
-    "test": "node --test tests/core.test.mjs tests/providers.test.mjs tests/structure.test.mjs tests/retrieval.test.mjs tests/operations.test.mjs",
+    "test": "node --test tests/core.test.mjs tests/providers.test.mjs tests/structure.test.mjs tests/retrieval.test.mjs tests/operations.test.mjs tests/quality.test.mjs",
     "desktop": "electron .",
     "package:mac": "npm run build && electron-builder --mac dmg zip",
     "package:win": "npm run build && electron-builder --win nsis",
