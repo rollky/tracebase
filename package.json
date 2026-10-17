@@ -1,6 +1,6 @@
 {
   "name": "tracebase",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "从代码与文档建立可追溯的业务知识库",
   "author": "Tracebase",
   "private": true,

@@ -71,9 +71,19 @@ test('failed batches resume after reload without duplicating completed drafts',a
 test('question preview prevents changed knowledge from being sent and saves valid references',async t=>{
   const {service,id,p}=await setup(t);const file=p.index.files[0];await service.startAnalysis(id,{fileIds:[file.id]});await finish(service,id);
   const pack=await service.previewQuestion(id,'取消规则');assert.equal(pack.candidates.length,1);let sent=0;
-  service.fetcher=async()=>{sent++;return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({answer:'根据草稿，允许取消。',references:[p.articles[0].id]})}}]}));};
+  service.fetcher=async()=>{sent++;return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({answer:'需要批准。[K1]',references:[{passageId:'K1',quote:'取消规则需要管理员批准'}]})}}]}));};
   await service.updateArticle(id,p.articles[0].id,{body:'取消规则需要管理员批准'});
   await assert.rejects(service.answerQuestion(id,'取消规则',pack.fingerprint),/已变化/);assert.equal(sent,0);
   const latest=await service.previewQuestion(id,'取消规则');await service.answerQuestion(id,'取消规则',latest.fingerprint);
   assert.equal(p.answers.length,1);assert.equal(p.answers[0].references[0].id,p.articles[0].id);
+});
+
+test('question confirmation binds scope, question and full knowledge body; rejects edits during response',async t=>{
+  const {service,id,p}=await setup(t);p.articles=[{id:'rules',title:'取消',domain:'订单',status:'reviewed',body:'取消需要审批。\n'+'其他说明。'.repeat(1000),sources:[],questions:[]}];
+  const scope={domain:'订单',status:'reviewed',limit:3},pack=await service.previewQuestion(id,'取消',scope);let sends=0;
+  service.fetcher=async()=>{sends++;p.articles[0].body+='修改';return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({answer:'需要审批。[K1]',references:[{passageId:'K1',quote:'取消需要审批。'}]})}}]}));};
+  await assert.rejects(service.answerQuestion(id,'取消？',pack.fingerprint,scope),/已变化/);
+  await assert.rejects(service.answerQuestion(id,'取消',pack.fingerprint,{...scope,limit:8}),/已变化/);assert.equal(sends,0);
+  p.articles[0].body+='正文末尾修改';await assert.rejects(service.answerQuestion(id,'取消',pack.fingerprint,scope),/已变化/);assert.equal(sends,0);
+  const latest=await service.previewQuestion(id,'取消',scope);await assert.rejects(service.answerQuestion(id,'取消',latest.fingerprint,scope),/回答期间/);assert.equal(sends,1);assert.equal(p.answers?.length||0,0);
 });
