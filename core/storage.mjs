@@ -11,5 +11,5 @@ export class Store {
   save(){const text=JSON.stringify(this.state,null,2);this.queue=this.queue.catch(()=>{}).then(async()=>{const target=path.join(this.directory,'workspace.json');await fs.writeFile(target+'.tmp',text,{mode:0o600});await fs.rename(target+'.tmp',target);});return this.queue;}
 }
 export function articleMarkdown(article,project) {
-  return `# ${article.title}\n\n> 项目：${project.name} · 状态：${article.status==='reviewed'?'人工已核对':'待审核草稿'}${article.stale?' · 来源已变化':''}\n> 生成于：${article.createdAt}\n\n${article.body}\n\n## 代码与文档依据\n\n${article.sources.map(s=>`- ${s.path}：${s.start}–${s.end} 行；版本 ${s.revision}；SHA256 ${s.hash}`).join('\n')}\n\n## 待确认问题\n\n${article.questions.length?article.questions.map(q=>'- '+q).join('\n'):'暂无记录。'}\n`;
+  return `# ${article.title}\n\n> 项目：${project.name} · 状态：${article.status==='reviewed'?'人工已核对':'待审核草稿'}${article.stale?' · 来源已变化':''}${article.replacesArticleId?' · 更新建议（尚未应用）':''}\n> 生成于：${article.createdAt}\n\n${article.body}\n\n## 代码与文档依据\n\n${article.sources.map(s=>`- ${s.path}：${s.start}–${s.end} 行；版本 ${s.revision}；SHA256 ${s.hash}`).join('\n')}\n\n## 待确认问题\n\n${article.questions.length?article.questions.map(q=>'- '+q).join('\n'):'暂无记录。'}\n`;
 }

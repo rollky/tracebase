@@ -1,6 +1,6 @@
 {
   "name": "tracebase",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "从代码与文档建立可追溯的业务知识库",
   "author": "Tracebase",
   "private": true,
@@ -13,24 +13,25 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "start": "npm run build && electron .",
-    "test": "node --test tests/core.test.mjs tests/providers.test.mjs",
+    "test": "node --test tests/core.test.mjs tests/providers.test.mjs tests/structure.test.mjs tests/retrieval.test.mjs",
     "desktop": "electron .",
     "package:mac": "npm run build && electron-builder --mac dmg zip",
     "package:win": "npm run build && electron-builder --win nsis",
     "package:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
     "fast-xml-parser": "^5.3.0",
     "fflate": "^0.8.2",
-    "pdfjs-dist": "^6.4.299"
+    "pdfjs-dist": "^6.4.299",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "typescript": "6.0.3"
   },
   "devDependencies": {
-    "vite": "8.3.4",
     "electron": "^42.0.0",
     "electron-builder": "26.15.3",
-    "playwright": "1.58.2"
+    "playwright": "1.58.2",
+    "vite": "8.3.4"
   },
   "overrides": {
     "global-agent": "4.1.3"

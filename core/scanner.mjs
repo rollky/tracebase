@@ -4,10 +4,11 @@ import {createHash, randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {XMLParser} from 'fast-xml-parser';
+import {extractStructure,buildGraph} from './structure.mjs';
 
 const execute = promisify(execFile);
 export const SKIP = new Set(['.git','.svn','node_modules','vendor','dist','build','target','.venv','venv','__pycache__','.next','coverage','release','.idea','.vscode']);
-const EXT = new Set(['.py','.java','.kt','.go','.rs','.js','.jsx','.ts','.tsx','.vue','.cs','.php','.rb','.sql','.graphql','.proto','.md','.mdx','.txt','.csv','.json','.xml','.yaml','.yml','.html','.css','.scss','.c','.cpp','.h','.sh','.properties','.pdf','.docx']);
+const EXT = new Set(['.py','.java','.kt','.go','.rs','.js','.mjs','.cjs','.mts','.cts','.jsx','.ts','.tsx','.vue','.cs','.php','.rb','.sql','.graphql','.proto','.md','.mdx','.txt','.csv','.json','.xml','.yaml','.yml','.html','.css','.scss','.c','.cpp','.h','.sh','.properties','.pdf','.docx']);
 export const hash = data => createHash('sha256').update(data).digest('hex');
 const arr = x => !x ? [] : Array.isArray(x) ? x : [x];
 export function parseSvn(infoXml, statusXml) {
@@ -122,11 +123,12 @@ export async function scanSources(sources, {signal,onProgress=()=>{}}={}) {
         const lineCount=text.split('\n').length;
         const id=hash(source.id+':'+rel).slice(0,20);
         files.push({id,sourceId:source.id,path:rel,hash:hash(raw),bytes:raw.length,lines:lineCount,revision:revisions.get(rel)||version.revision,kind:/\.(md|txt|pdf|docx|csv)$/i.test(rel)?'document':'code',textHash:hash(text)});
+        files.at(-1).structure=extractStructure(rel,text);
         if(files.length%25===0) onProgress(`已索引 ${files.length} 个文件`);
       } catch(error) { skipped.push({sourceId:source.id,path:rel,reason:error.message}); }
     }
   }
-  return {id:randomUUID(),at:new Date().toISOString(),files,skipped,versions};
+  return {id:randomUUID(),at:new Date().toISOString(),files,skipped,versions,graph:buildGraph(files)};
 }
 export function compareIndex(before, after) {
   const a=new Map((before?.files||[]).map(f=>[f.id,f])),b=new Map(after.files.map(f=>[f.id,f]));
