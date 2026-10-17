@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {Store,articleMarkdown} from '../core/storage.mjs';
 import {Service} from '../core/service.mjs';
+import {usageCsv,ensureBilling} from '../core/billing.mjs';
 import {checkUpdates} from '../core/updates.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 let win,service;
@@ -26,6 +27,10 @@ function createWindow(){win=new BrowserWindow({width:1536,height:980,minWidth:10
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',(event,url)=>{if(url!==appURL)event.preventDefault();});
   win.webContents.session.setPermissionRequestHandler((wc,permission,callback)=>callback(false));win.loadURL(appURL);win.on('closed',()=>{win=null;});}
 async function actions(action,args){
+  if(action==='exportUsage'){
+    const text=usageCsv(ensureBilling(service.store.state)),result=await dialog.showSaveDialog(win,{title:'导出用量月报',defaultPath:'tracebase-usage.csv',filters:[{name:'CSV',extensions:['csv']}]});
+    if(result.canceled)return null;await fs.writeFile(result.filePath,text,{mode:0o600});return result.filePath;
+  }
   if(action==='checkUpdates')return checkUpdates(app.getVersion());
   if(action==='backupProject'){
     const p=service.project(args[0]),text=service.backupProject(p.id);
@@ -56,7 +61,7 @@ async function actions(action,args){
   if(action==='openLink'){
     const value=args[0];if(typeof value!=='string'||!(/^https:\/\/www\.feishu\.cn\/docx\/[A-Za-z0-9_-]+$/.test(value)||/^https:\/\/github\.com\/rollky\/tracebase\/releases\/tag\/v\d+\.\d+\.\d+$/.test(value)))throw new Error('仅允许打开已发布的飞书文档或官方版本页');await shell.openExternal(value);return;
   }
-  const allowed=['state','createProject','selectProject','removeSource','scan','saveRuntime','saveSchedule','previewFeishu','importFeishu','refreshFeishu','previewPublication','appendPublication','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','inspectQuality','dismissQuality','consolidateKnowledge','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
+  const allowed=['state','createProject','selectProject','removeSource','scan','saveModelRate','saveBudget','reconcileBudget','saveRuntime','saveSchedule','previewFeishu','importFeishu','refreshFeishu','previewPublication','appendPublication','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','inspectQuality','dismissQuality','consolidateKnowledge','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
   if(!allowed.includes(action))throw new Error('不支持的操作');
   return service[action](...args);
 }

@@ -13,10 +13,10 @@ export async function retryRequest(operation,{signal,retries=2,onRetry=()=>{},wa
 
 // A single in-flight model request across all projects, plus a minimum interval.
 export class ModelQueue{
-  constructor(){this.tail=Promise.resolve();this.last=0;}
+  constructor(){this.tail=Promise.resolve();this.last=0;this.active=false;}
   async run(operation,{signal,intervalMs=500}={}){
     const before=this.tail;let release;this.tail=new Promise(r=>{release=r;});
-    try{await before;signal?.throwIfAborted();const remaining=this.last+intervalMs-Date.now();if(remaining>0)await delay(remaining,undefined,{signal});signal?.throwIfAborted();this.last=Date.now();return await operation();}finally{release();}
+    try{await before;signal?.throwIfAborted();const remaining=this.last+intervalMs-Date.now();if(remaining>0)await delay(remaining,undefined,{signal});signal?.throwIfAborted();this.last=Date.now();this.active=true;try{return await operation();}finally{this.active=false;}}finally{release();}
   }
 }
 

@@ -1,3 +1,4 @@
+import {ensureBilling,findRate,setRate,setBudget,assertBudget,recordUsage,reconcileMonth} from './billing.mjs';
 import {inspectKnowledge} from './quality.mjs';
 import {randomUUID} from 'node:crypto';
 import {scanSources,compareIndex,readEvidence,makeChunks,hash} from './scanner.mjs';
@@ -12,17 +13,23 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 const now=()=>new Date().toISOString();
 export class Service {
-  constructor(store,secrets,{notify=()=>{},fetcher=fetch}={}){this.store=store;this.secrets=secrets;this.notify=notify;this.fetcher=fetcher;this.running=new Map();this.scanning=new Set();this.modelQueue=new ModelQueue();this.importing=new Set();this.publishing=new Set();}
+  constructor(store,secrets,{notify=()=>{},fetcher=fetch}={}){this.store=store;ensureBilling(store.state);this.secrets=secrets;this.notify=notify;this.fetcher=fetcher;this.running=new Map();this.scanning=new Set();this.modelQueue=new ModelQueue();this.importing=new Set();this.publishing=new Set();}
   project(id){const p=this.store.state.projects.find(p=>p.id===id);if(!p)throw new Error('项目不存在');return p;}
   async state(){return {...structuredClone(this.store.state),models:{...this.store.state.models,hasKey:await this.secrets.has('model')},feishu:{...this.store.state.feishu,hasSecret:await this.secrets.has('feishu')}};}
   async save(){await this.store.save();this.notify();}
   async modelRequest(config,key,messages,options={}){
     const runtime=this.store.state.runtime||{intervalMs:500,retries:2};
     return retryRequest(()=>this.modelQueue.run(async()=>{
+      const billing=ensureBilling(this.store.state);assertBudget(billing,config);
+      const entry={id:randomUUID(),at:now(),model:config.model,baseUrl:config.baseUrl,rate:structuredClone(findRate(billing,config)),success:false,usage:null,billingState:'pending'};
+      this.store.state.usageEvents=[entry,...(this.store.state.usageEvents||[])].slice(0,500);await this.save();
       let result;try{result=await chat(config,key,messages,{...options,fetcher:this.fetcher});return result;}
-      finally{const entry={at:now(),model:config.model,success:!!result,usage:normalizeUsage(result?.usage)};this.store.state.usageEvents=[entry,...(this.store.state.usageEvents||[])].slice(0,500);await this.save();}
+      finally{entry.success=!!result;entry.usage=normalizeUsage(result?.usage);entry.billingState='completed';recordUsage(billing,entry);await this.save();}
     },{signal:options.signal,intervalMs:runtime.intervalMs}),{signal:options.signal,retries:runtime.retries,onRetry:options.onRetry});
   }
+  async saveModelRate(input){setRate(ensureBilling(this.store.state),this.store.state.models,input);await this.save();}
+  async saveBudget(input){setBudget(ensureBilling(this.store.state),input);await this.save();}
+  async reconcileBudget(amount){if(this.running.size||this.modelQueue.active)throw new Error('请等待模型请求完成后补录');reconcileMonth(ensureBilling(this.store.state),amount);await this.save();}
   async saveRuntime(input){const intervalMs=Number(input.intervalMs),retries=Number(input.retries);if(!Number.isInteger(intervalMs)||intervalMs<0||intervalMs>30000||!Number.isInteger(retries)||retries<0||retries>3)throw new Error('请求间隔应为 0–30000 毫秒，重试次数为 0–3');this.store.state.runtime={intervalMs,retries};await this.save();}
   async saveSchedule(id,{enabled,minutes}){const p=this.project(id);minutes=Number(minutes);if(!Number.isInteger(minutes)||minutes<15||minutes>1440)throw new Error('扫描间隔应为 15–1440 分钟');p.scanSchedule={enabled:!!enabled,minutes,nextAt:new Date(Date.now()+minutes*60000).toISOString()};await this.save();}
   async scanDueProjects(){for(const p of this.store.state.projects){const schedule=p.scanSchedule;if(!schedule?.enabled||Date.parse(schedule.nextAt)>Date.now()||this.running.has(p.id)||this.scanning.has(p.id)||this.importing.has(p.id))continue;try{await this.scan(p.id);schedule.message='定时扫描完成';}catch(e){schedule.message=e.message;}schedule.lastAt=now();schedule.nextAt=new Date(Date.now()+schedule.minutes*60000).toISOString();await this.save();}}

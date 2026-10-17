@@ -1,3 +1,4 @@
+import {recoverPendingBilling} from './billing.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 export const initialState=()=>({schema:2,projects:[],models:{provider:'custom',baseUrl:'',model:''},feishu:{appId:'',folderToken:''},activeProjectId:null,runtime:{intervalMs:500,retries:2},usageEvents:[]});
@@ -8,6 +9,7 @@ export class Store {
     if(this.state.schema===1){await fs.copyFile(path.join(this.directory,'workspace.json'),path.join(this.directory,'workspace.schema1.bak'));this.state.schema=2;this.state.runtime={intervalMs:500,retries:2};this.state.usageEvents=[];await this.save();}
     for(const p of this.state.projects)for(const j of p.jobs||[])if(['running','queued'].includes(j.status)){j.status='interrupted';j.message='应用关闭中断了任务，可从断点继续';}
     for(const p of this.state.projects)for(const item of p.publications||[])if(item.status==='publishing'){item.status=item.url?'partial':'interrupted';item.message='应用关闭中断了发布，请先检查飞书中的文档，避免重复创建。';}
+    if(recoverPendingBilling(this.state))await this.save();
     return this.state;
   }
   save(){const text=JSON.stringify(this.state,null,2);this.queue=this.queue.catch(()=>{}).then(async()=>{const target=path.join(this.directory,'workspace.json');await fs.writeFile(target+'.tmp',text,{mode:0o600});await fs.rename(target+'.tmp',target);});return this.queue;}
