@@ -1,10 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-export const initialState=()=>({schema:1,projects:[],models:{provider:'custom',baseUrl:'',model:''},feishu:{appId:'',folderToken:''},activeProjectId:null});
+export const initialState=()=>({schema:2,projects:[],models:{provider:'custom',baseUrl:'',model:''},feishu:{appId:'',folderToken:''},activeProjectId:null,runtime:{intervalMs:500,retries:2},usageEvents:[]});
 export class Store {
   constructor(directory){this.directory=directory;this.state=initialState();this.queue=Promise.resolve();}
   async load(){await fs.mkdir(this.directory,{recursive:true});try{this.state=JSON.parse(await fs.readFile(path.join(this.directory,'workspace.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw new Error('项目数据读取失败；已保留原文件，请先备份后排查。');}
-    for(const p of this.state.projects)for(const j of p.jobs||[])if(['running','queued'].includes(j.status)){j.status='interrupted';j.message='应用关闭中断了任务，可重新发起分析';}
+    if(![1,2].includes(this.state.schema)||!Array.isArray(this.state.projects))throw new Error('工作区版本不受支持，请使用兼容版本打开');
+    if(this.state.schema===1){await fs.copyFile(path.join(this.directory,'workspace.json'),path.join(this.directory,'workspace.schema1.bak'));this.state.schema=2;this.state.runtime={intervalMs:500,retries:2};this.state.usageEvents=[];await this.save();}
+    for(const p of this.state.projects)for(const j of p.jobs||[])if(['running','queued'].includes(j.status)){j.status='interrupted';j.message='应用关闭中断了任务，可从断点继续';}
     for(const p of this.state.projects)for(const item of p.publications||[])if(item.status==='publishing'){item.status=item.url?'partial':'interrupted';item.message='应用关闭中断了发布，请先检查飞书中的文档，避免重复创建。';}
     return this.state;
   }

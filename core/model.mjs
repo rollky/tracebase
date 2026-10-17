@@ -21,7 +21,7 @@ export async function chat(config,key,messages,{signal,fetcher=fetch,maxTokens=5
   const response=await fetcher(normalizeEndpoint(config.baseUrl),{method:'POST',redirect:'error',signal:signal?AbortSignal.any([signal,timeout]):timeout,
     headers:{'Content-Type':'application/json',...(key?{Authorization:`Bearer ${key}`}:{})},
     body:JSON.stringify({model:config.model,messages,...providerParameters(config,maxTokens),stream:false})});
-  if(!response.ok) throw new Error(`模型请求失败（HTTP ${response.status}）。请检查模型名称、Key、额度和服务地址。`);
+  if(!response.ok){const error=new Error(`模型请求失败（HTTP ${response.status}）。请检查模型名称、Key、额度和服务地址。`);error.status=response.status;const after=response.headers?.get('retry-after');error.retryAfterMs=after?(Number.isFinite(Number(after))?Number(after)*1000:Math.max(0,Date.parse(after)-Date.now())):0;throw error;}
   const body=await response.text();if(body.length>2000000)throw new Error('模型响应过大');
   let data;try{data=JSON.parse(body);}catch{throw new Error('模型返回了非 JSON 响应，请检查兼容接口地址');}
   const choice=data.choices?.[0];

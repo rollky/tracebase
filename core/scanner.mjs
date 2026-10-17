@@ -90,7 +90,7 @@ export async function scanSources(sources, {signal,onProgress=()=>{}}={}) {
   for(const source of sources) {
     signal?.throwIfAborted();
     const root=await fs.realpath(source.root);
-    const version=source.paths?.length ? {kind:'documents',revision:'文件快照'} : await detectVersion(root);
+    const version=source.remote ? {kind:'feishu',revision:`飞书 r${source.remote.revision}`,url:source.remote.url} : source.paths?.length ? {kind:'documents',revision:'文件快照'} : await detectVersion(root);
     versions.push({sourceId:source.id,...version,entries:undefined});
     const revisions=new Map((version.entries||[]).map(e=>[e.path.replaceAll('\\','/'),e.revision]));
     let candidates=[];

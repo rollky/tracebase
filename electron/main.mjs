@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {Store,articleMarkdown} from '../core/storage.mjs';
 import {Service} from '../core/service.mjs';
+import {checkUpdates} from '../core/updates.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
 let win,service;
 app.setName('Tracebase');
@@ -25,6 +26,16 @@ function createWindow(){win=new BrowserWindow({width:1536,height:980,minWidth:10
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',(event,url)=>{if(url!==appURL)event.preventDefault();});
   win.webContents.session.setPermissionRequestHandler((wc,permission,callback)=>callback(false));win.loadURL(appURL);win.on('closed',()=>{win=null;});}
 async function actions(action,args){
+  if(action==='checkUpdates')return checkUpdates(app.getVersion());
+  if(action==='backupProject'){
+    const p=service.project(args[0]),text=service.backupProject(p.id);
+    const result=await dialog.showSaveDialog(win,{title:'备份项目知识（不包含密钥和源码）',defaultPath:`${p.name}-backup.json`,filters:[{name:'Tracebase 项目备份',extensions:['json']}]});
+    if(result.canceled)return null;await fs.writeFile(result.filePath,text,{mode:0o600});return result.filePath;
+  }
+  if(action==='restoreBackup'){
+    const result=await dialog.showOpenDialog(win,{title:'恢复为独立项目副本，源码目录需重新关联',properties:['openFile'],filters:[{name:'Tracebase 项目备份',extensions:['json']}]});
+    if(result.canceled)return null;const file=result.filePaths[0];if((await fs.stat(file)).size>20*1024*1024)throw new Error('备份超过 20 MB');return service.restoreProject(await fs.readFile(file,'utf8'));
+  }
   if(action==='chooseSources'){
     const [id,kind]=args;service.project(id);
     const result=await dialog.showOpenDialog(win,{title:kind==='folder'?'选择代码或资料目录':'选择参考文档',properties:kind==='folder'?['openDirectory']:['openFile','multiSelections'],...(kind==='folder'?{}:{filters:[{name:'文档',extensions:['md','txt','pdf','docx','csv','json','html']} ]})});
@@ -43,15 +54,16 @@ async function actions(action,args){
     await service.addSources(id,[{root:path.resolve(here,'../fixtures/order-center'),name:'order-center',kind:'folder'}]);await service.scan(id);return id;
   }
   if(action==='openLink'){
-    const value=args[0];if(typeof value!=='string'||!/^https:\/\/www\.feishu\.cn\/docx\/[A-Za-z0-9_-]+$/.test(value))throw new Error('仅允许打开已发布的飞书文档');await shell.openExternal(value);return;
+    const value=args[0];if(typeof value!=='string'||!(/^https:\/\/www\.feishu\.cn\/docx\/[A-Za-z0-9_-]+$/.test(value)||/^https:\/\/github\.com\/rollky\/tracebase\/releases\/tag\/v\d+\.\d+\.\d+$/.test(value)))throw new Error('仅允许打开已发布的飞书文档或官方版本页');await shell.openExternal(value);return;
   }
-  const allowed=['state','createProject','selectProject','removeSource','scan','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
+  const allowed=['state','createProject','selectProject','removeSource','scan','saveRuntime','saveSchedule','previewFeishu','importFeishu','refreshFeishu','previewPublication','appendPublication','saveModel','testModel','saveFeishu','testFeishu','previewAnalysis','previewQuestion','answerQuestion','startAnalysis','cancelAnalysis','resumeAnalysis','readSource','updateArticle','applyUpdate','publish'];
   if(!allowed.includes(action))throw new Error('不支持的操作');
   return service[action](...args);
 }
 if(locked)app.whenReady().then(async()=>{
   const dir=app.getPath('userData');const store=new Store(dir);await store.load();const secrets=new Secrets(dir);await secrets.load();
   service=new Service(store,secrets,{notify:()=>win?.webContents.send('tracebase:changed')});
+  const scheduler=setInterval(()=>service.scanDueProjects().catch(()=>{}),60000);scheduler.unref();app.on('before-quit',()=>clearInterval(scheduler));
   ipcMain.handle('tracebase:action',async(event,action,args)=>{
     if(!win||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||event.senderFrame.url!==appURL)return {error:'非法调用来源'};
     try{if(!Array.isArray(args))throw new Error('无效参数');return {value:await actions(action,args)};}catch(error){return {error:error.message};}
